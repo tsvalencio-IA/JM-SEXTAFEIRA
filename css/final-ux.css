@@ -87,7 +87,7 @@
 }
 
 
-/* V32.7.4 — cabeçalho legível e assinatura explícita do motorista */
+/* V32.7.6 — cabeçalho legível e assinatura explícita do motorista */
 #driverAppView .driver-topbar{
   display:block;
   height:auto;
