@@ -876,9 +876,9 @@
       result = calculateRoutePricing(callData, { route }, activePricingSettings(callData));
     }
     state.routePricing = result;
-    if (options.autoFill !== false && result.pricingSuggestion && !result.pricingSuggestion.manualPriceLocked && result.pricingSuggestion.suggestedServiceValue > 0) {
-      setOfficialPriceField(result.pricingSuggestion.suggestedServiceValue, $("callPrice") && $("callPrice").value ? "suggested" : "auto");
-    }
+    // Segurança financeira: cálculo de rota/pedágio é apenas assistido.
+    // O valor oficial do chamado só pode ser alterado por ação explícita do gestor
+    // pelo botão "Aplicar sugestão", que chama applySuggestedPriceToForm().
     if (options.render !== false) renderRoutePricingSummary(result);
     return result;
   }
@@ -1692,7 +1692,7 @@
       state.smartRoute = { origin: finalOrigin, destination, rankings, calculatedAt: new Date().toISOString() };
       const best = bestSmartRoute();
       if (best && !$("callVehicle").value) $("callVehicle").value = best.vehicle.id;
-      if (best) calculateCurrentRoutePricing({ syncTowForm: true, autoFill: true });
+      if (best) calculateCurrentRoutePricing({ syncTowForm: true, autoFill: false });
       renderSmartRouteBox();
       toast("Rota inteligente calculada por ruas/rodovias quando disponível.", "ok");
     } catch (err) {
