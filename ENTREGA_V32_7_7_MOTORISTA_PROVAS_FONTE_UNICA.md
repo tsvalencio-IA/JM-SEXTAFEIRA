@@ -1,7 +1,7 @@
 # ENTREGA V32.7.7 — MOTORISTA COM PROVAS COMO FONTE ÚNICA
 
 Alterações principais:
-- Versionamento/cache unificado em `jm-v32-7-7-motorista-provas-fonte-unica`.
+- Versionamento/cache unificado em `jm-sextafeira-hotfix-financeiro-rota-manual-v2`.
 - Criada `validateCompleteProofPackage(call, checklist)` como fonte única para pendências, proofStatus, etapa concluída e bloqueio de finalização.
 - Finalização não confia mais em `call.proofStatus` antigo quando ainda existem pendências.
 - Carregamento, Entrega e Finalização deixam de exibir ✓ quando faltam fotos, assinatura, aceite ou responsáveis obrigatórios.

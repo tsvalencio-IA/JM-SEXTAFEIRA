@@ -1,7 +1,9 @@
 {
-  "version": "jm-v32-7-7-motorista-provas-fonte-unica",
+  "version": "jm-sextafeira-hotfix-financeiro-rota-manual-v2",
   "description": "Motorista com fluxo guiado e validação única de provas: pendências, proofStatus, etapa concluída e finalização usam a mesma regra.",
-  "updatedAt": "2026-06-12",
+  "updatedAt": "2026-06-15T18:45:00Z",
   "build": "V32.7.7",
-  "notes": "Corrige divergência de proofStatus completo com pendências, falso ✓ em carregamento/entrega/finalização e recolhe relatório complementar."
+  "notes": "Corrige divergência de proofStatus completo com pendências, falso ✓ em carregamento/entrega/finalização e recolhe relatório complementar.",
+  "base": "JM-SEXTAFEIRA-main (2).zip",
+  "hotfix": "financeiro-rota-manual-sem-auto-aplicar-valor"
 }

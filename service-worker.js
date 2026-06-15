@@ -1,4 +1,4 @@
-const CACHE_NAME = "jm-v32-7-7-motorista-provas-fonte-unica";
+const CACHE_NAME = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
 const ASSETS = [
   "./",
   "./index.html",
