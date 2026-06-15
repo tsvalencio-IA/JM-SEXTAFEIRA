@@ -9,8 +9,8 @@
   } = window.JM.utils;
   const { auth, secondaryAuth, db, ts, arrayUnion, emailIsAdmin, getRealtimeDb, rtdbKey } = window.JM.firebase;
   const cfg = window.JM_CONFIG || {};
-  const SYSTEM_SIGNATURE = "";
-  const LOGIN_FLOW_VERSION = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
+  const SYSTEM_SIGNATURE = "Powered by thIAguinho Soluções Digitais";
+  const LOGIN_FLOW_VERSION = "jm-fluxo-comercial-v6-laudos-financeiro";
   let trackerTimer = null;
   let trackerBusy = false;
   let mapRefreshTimer = null;
@@ -851,7 +851,7 @@
     const toll = pricingResult.tollEstimate || {};
     if ($("callTowKm") && !parseMoney($("callTowKm").value || 0) && suggestion.distanceKm) {
       setValue("callTowKm", brNumber(suggestion.distanceKm));
-      if ($("callTowActive")) $("callTowActive").checked = true;
+      // Não ativar cobrança de guincho automaticamente; a rota só alimenta dados auxiliares ocultos.
     }
     if ($("callTowTollOneWay") && !parseMoney($("callTowTollOneWay").value || 0) && toll.oneWayTotal > 0) {
       setValue("callTowTollOneWay", brNumber(toll.oneWayTotal));
@@ -887,13 +887,13 @@
     const result = pricingResult || state.routePricing || calculateCurrentRoutePricing({ syncTowForm: true, autoFill: false });
     const suggestion = result && result.pricingSuggestion;
     if (!suggestion || !suggestion.suggestedServiceValue) {
-      toast("Calcule a rota/preco antes de aplicar a sugestao.", "danger");
+      toast("Calcule a rota/pedágio antes de aplicar a sugestão.", "danger");
       return null;
     }
     if (!callId || options && options.updateForm) {
       setOfficialPriceField(suggestion.suggestedServiceValue, "suggested");
       state.routePricing = calculateCurrentRoutePricing({ syncTowForm: false, autoFill: false }) || result;
-      setTowStatus("Preco sugerido aplicado conscientemente no valor previsto: " + money(suggestion.suggestedServiceValue) + ".", "ok");
+      setTowStatus("Sugestão da rota aplicada conscientemente no valor previsto: " + money(suggestion.suggestedServiceValue) + ".", "ok");
       return suggestion.suggestedServiceValue;
     }
     const updates = {
@@ -903,7 +903,7 @@
       pricingSuggestion: result.pricingSuggestion,
       tollEstimate: result.tollEstimate,
       updatedAt: new Date().toISOString(),
-      timeline: arrayUnion({ at: new Date().toISOString(), by: personName(), text: "Preco sugerido pela rota aplicado ao chamado" })
+      timeline: arrayUnion({ at: new Date().toISOString(), by: personName(), text: "Sugestão da rota aplicada ao chamado" })
     };
     await db.collection("calls").doc(callId).set(updates, { merge: true });
     if (canManageFinance()) await upsertCallReceivable(callId, { amount: suggestion.suggestedServiceValue, expectedAmount: suggestion.suggestedServiceValue, forceAmount: true, status: "A receber" });
@@ -1038,18 +1038,15 @@
     const km = routeKmForTow();
     if (!km) return setTowStatus("Não há KM calculado. Primeiro busque origem/destino ou trace a rota inteligente.", "danger");
     setValue("callTowKm", brNumber(km));
-    if ($("callTowActive")) $("callTowActive").checked = true;
     const data = calculateTowPricing();
     calculateCurrentRoutePricing({ syncTowForm: true, autoFill: false });
-    setTowStatus("KM da rota aplicado: " + brNumber(km) + " km. Pedágios: " + money(data.pedagioTotal || 0) + ". Total atual: " + money(data.total) + ".", "ok");
+    setTowStatus("KM da rota registrado como apoio: " + brNumber(km) + " km. Pedágio estimado: " + money(data.pedagioTotal || 0) + ". O valor previsto continua manual.", "ok");
   }
 
   function applyTowTotalToPrice() {
-    const data = calculateTowPricing();
-    if (!data.ativo) return setTowStatus("Marque Cobrar no chamado antes de aplicar o total.", "danger");
-    setValue("callPrice", brNumber(data.total));
-    setPriceMode("suggested", false);
-    setTowStatus("Total do guincho aplicado no valor previsto: " + money(data.total) + ".", "ok");
+    // Campo legado preservado para compatibilidade com arquivos antigos, porém sem alterar valor oficial.
+    setTowStatus("Cálculo detalhado do guincho foi retirado da tela. Use o Valor previsto manual ou aplique a sugestão da rota.", "warn");
+    return null;
   }
 
 
@@ -2753,36 +2750,149 @@ Rota: ${url}`;
     return true;
   }
 
+  function callCardStorageKey() {
+    return "jm.collapsed.calls.v5";
+  }
+
+  function collapsedCallSet() {
+    if (!state.collapsedCallsV5) {
+      try {
+        state.collapsedCallsV5 = new Set(JSON.parse(localStorage.getItem(callCardStorageKey()) || "[]"));
+      } catch (_) {
+        state.collapsedCallsV5 = new Set();
+      }
+    }
+    return state.collapsedCallsV5;
+  }
+
+  function persistCollapsedCalls() {
+    try {
+      localStorage.setItem(callCardStorageKey(), JSON.stringify(Array.from(collapsedCallSet())));
+    } catch (_) {}
+  }
+
+  function toggleCallCard(id) {
+    const set = collapsedCallSet();
+    if (set.has(id)) set.delete(id); else set.add(id);
+    persistCollapsedCalls();
+    renderCalls();
+  }
+
+  function expandAllCallCards() {
+    collapsedCallSet().clear();
+    persistCollapsedCalls();
+    renderCalls();
+  }
+
+  function collapseAllCallCards() {
+    visibleRows(state.calls).filter((c) => !isFinalStatus(c)).forEach((c) => collapsedCallSet().add(c.id));
+    persistCollapsedCalls();
+    renderCalls();
+  }
+
+  function focusNewCallForm() {
+    if ($("callForm")) $("callForm").scrollIntoView({ behavior: "smooth", block: "start" });
+    const first = $("callClient") || $("callCustomerId");
+    if (first && typeof first.focus === "function") setTimeout(() => first.focus(), 250);
+  }
+
+  function callOperationalFlags(call) {
+    const flags = [];
+    if (!call.driverId) flags.push({ label: "sem motorista", cls: "warn" });
+    if (!call.vehicleId) flags.push({ label: "sem veículo", cls: "warn" });
+    if (proofStatus(call) === "completo") flags.push({ label: "provas ok", cls: "ok" });
+    if (proofStatus(call) === "parcial") flags.push({ label: "provas parciais", cls: "warn" });
+    if (call.financePending || call.billingStatus === "aguardando_provas") flags.push({ label: "financeiro pendente", cls: "danger" });
+    const unread = publicChatUnreadCount(call);
+    if (unread) flags.push({ label: unread + " msg cliente", cls: "danger" });
+    const sla = slaInfo(call);
+    if (sla && sla.label) flags.push({ label: sla.label, cls: sla.className || "info" });
+    return flags;
+  }
+
+  function renderCallCard(c) {
+    const vehicle = state.vehicles[c.vehicleId] || {};
+    const driver = state.users[c.driverId] || {};
+    const url = c.routeExternalUrl || c.routeUrl || mapsRouteUrl(c, vehicle);
+    const km = routeKm(c, vehicle);
+    const metric = c.routeDistanceText || c.routeMetrics && c.routeMetrics.fullRoute && c.routeMetrics.fullRoute.distanceText || c.routeMetrics && c.routeMetrics.bestToOrigin && c.routeMetrics.bestToOrigin.distanceText || (km ? km.toFixed(1).replace(".", ",") + " km" : "Sem rota");
+    const collapsed = collapsedCallSet().has(c.id);
+    const active = state.selectedDossierCallId === c.id;
+    const flags = callOperationalFlags(c).map((f) => `<span class="badge ${esc(f.cls)}">${esc(f.label)}</span>`).join("");
+    const valueHtml = canSeeSensitiveFinance() ? `<span class="call-card-money">${money(c.valor || 0)}</span>` : `<span class="muted small">valor restrito</span>`;
+    const quickLinks = quickCallLinks(c, vehicle);
+    const adminActions = canOwnCompany() ? `<button class="btn" onclick="JM.app.editCall('${esc(c.id)}')">Editar</button><button class="btn danger" onclick="JM.app.deleteCall('${esc(c.id)}')">Excluir</button>` : "";
+    const viewProofActions = proofStatus(c) !== "pendente" ? `<button class="btn" onclick="JM.app.viewCallProofs('${esc(c.id)}')">Provas</button>` : "";
+    const proofActions = (canOwnCompany() || hasRole(["gerente"])) && proofStatus(c) === "completo" ? `<button class="btn good" onclick="JM.app.reviewCallProofs('${esc(c.id)}')">Revisar</button>` : "";
+    return `<article class="call-card ${collapsed ? "is-collapsed" : ""} ${active ? "is-active" : ""}" data-call-id="${esc(c.id)}">
+      <header class="call-card-head">
+        <button class="call-card-main" type="button" onclick="JM.app.selectCallDossier('${esc(c.id)}')" aria-label="Abrir chamado ${esc(c.protocolo || c.id)}">
+          <span class="call-card-protocol">${esc(c.protocolo || c.id)}</span>
+          <span class="call-card-client">${esc(c.cliente || "Cliente não informado")}</span>
+          <span class="call-card-route">${esc(c.originLabel || c.origem && c.origem.label || "Origem não informada")} → ${esc(c.destLabel || c.destino && c.destino.label || "Destino não informado")}</span>
+        </button>
+        <div class="call-card-status">
+          <span class="badge ${statusClass(c)}">${esc(operationalStatus(c))}</span>
+          ${proofStatusBadge(c)}
+          ${valueHtml}
+        </div>
+        <button class="btn call-card-toggle" type="button" onclick="JM.app.toggleCallCard('${esc(c.id)}')">${collapsed ? "Abrir" : "Minimizar"}</button>
+      </header>
+      <div class="call-card-body">
+        <div class="call-card-grid">
+          <div><b>Motorista</b><br><span>${esc(driver.nome || driver.email || "Sem motorista")}</span></div>
+          <div><b>Veículo</b><br><span>${esc(vehicle.placa || vehicle.apelido || "Sem veículo")}</span></div>
+          <div><b>Rota/KM</b><br><span>${esc(metric)}</span></div>
+          <div><b>Cliente</b><br><span>${esc(c.phone || "Sem WhatsApp")}</span></div>
+        </div>
+        <div class="call-card-flags">${flags || `<span class="badge info">sem alertas críticos</span>`}</div>
+        <div class="call-card-actions">
+          <button class="btn primary" onclick="JM.app.selectCallDossier('${esc(c.id)}')">Abrir painel</button>
+          ${quickLinks}
+          <button class="btn good" onclick="JM.app.setCallStatus('${esc(c.id)}','despachado')">Despachar</button>
+          <button class="btn" onclick="JM.app.setCallStatus('${esc(c.id)}','motorista_a_caminho')">A caminho</button>
+          <button class="btn" onclick="JM.app.setCallStatus('${esc(c.id)}','finalizado')">Finalizar</button>
+          ${url ? `<a class="btn" target="_blank" rel="noopener noreferrer" href="${esc(url)}">Rota</a>` : ""}
+          ${viewProofActions}${proofActions}${adminActions}
+        </div>
+      </div>
+    </article>`;
+  }
+
   function renderCalls() {
     const filter = callListFilter("calls");
-    const rows = visibleRows(state.calls).filter((c) => !isFinalStatus(c) && matchesCallListFilter(c, filter)).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-    if (!rows.length) return $("callsTable").innerHTML = `<p class="muted">Nenhum chamado registrado.</p>`;
-    $("callsTable").innerHTML = `<table><thead><tr><th>Protocolo</th><th>Cliente</th><th>Origem/Destino</th><th>Veículo</th><th>Status</th><th>Ações</th></tr></thead><tbody>` + rows.map((c) => {
-      const vehicle = state.vehicles[c.vehicleId] || {};
-      const driver = state.users[c.driverId] || {};
-      const url = c.routeExternalUrl || c.routeUrl || mapsRouteUrl(c, vehicle);
-      const km = routeKm(c, vehicle);
-      const metric = c.routeDistanceText || c.routeMetrics && c.routeMetrics.fullRoute && c.routeMetrics.fullRoute.distanceText || c.routeMetrics && c.routeMetrics.bestToOrigin && c.routeMetrics.bestToOrigin.distanceText || (km ? km.toFixed(1).replace(".", ",") + " km" : "Sem rota");
-      const routeBadge = c.routePrecision === "osrm_openstreetmap" || c.routeMetrics && c.routeMetrics.fullRoute && c.routeMetrics.fullRoute.isPrecise ? `<br><span class="badge ok">Rota por ruas</span>` : `<br><span class="badge warn">Fallback/estimada</span>`;
-      const tow = c.towPricing || c.deslocamentoGuincho || {};
-      const towHtml = tow.ativo ? `<br><span class="badge info">Guincho ${esc(String(tow.kmTotal || 0).replace(".", ","))} km · ${canSeeSensitiveFinance() ? money(tow.total || 0) : "valor restrito"}</span>` : "";
-      const adminActions = canOwnCompany() ? `<button class="btn" onclick="JM.app.editCall('${esc(c.id)}')">Editar</button><button class="btn danger" onclick="JM.app.deleteCall('${esc(c.id)}')">Excluir</button>` : "";
-      const viewProofActions = proofStatus(c) !== "pendente" ? `<button class="btn" onclick="JM.app.viewCallProofs('${esc(c.id)}')">Ver provas</button>` : "";
-      const proofActions = (canOwnCompany() || hasRole(["gerente"])) && proofStatus(c) === "completo" ? `<button class="btn good" onclick="JM.app.reviewCallProofs('${esc(c.id)}')">Revisar provas</button>` : "";
-      const valueHtml = canSeeSensitiveFinance() ? `<br><b>${money(c.valor || 0)}</b>` : "";
-      const sla = slaInfo(c);
-      const unreadChat = publicChatUnreadCount(c);
-      const chatBadge = unreadChat ? `<br><span class="badge danger">${unreadChat} mensagem(ns) do cliente</span>` : "";
-      const quickLinks = quickCallLinks(c, vehicle);
-      return `<tr>
-        <td><b>${esc(c.protocolo || c.id)}</b><br><span class="muted small">${dateTime(c.createdAt)}</span></td>
-        <td>${esc(c.cliente || "")}<br><span class="muted small">${esc(c.phone || "")}</span><br><span class="muted small">${esc(c.source || "Particular")}${c.insurance ? " · " + esc(c.insurance) : ""}${c.insuranceProtocol ? " · Prot. " + esc(c.insuranceProtocol) : ""}</span></td>
-        <td><span class="small">${esc(c.originLabel || c.origem && c.origem.label || "-")}</span><br><span class="muted small">→ ${esc(c.destLabel || c.destino && c.destino.label || "-")}</span><br><b>${esc(metric)}</b>${routeBadge}${towHtml}${chatBadge}${url ? `<br><a class="info small" target="_blank" rel="noopener noreferrer" href="${esc(url)}">Abrir rota no Maps</a>` : ""}</td>
-        <td>${esc(vehicle.placa || "-")}<br><span class="muted small">${esc(driver.nome || driver.email || "Sem motorista")}</span></td>
-        <td><span class="badge ${statusClass(c)}">${esc(operationalStatus(c))}</span>${valueHtml}<br><span class="badge ${sla.className}">${esc(sla.label)}</span><br>${proofStatusBadge(c)}</td>
-        <td class="row-actions"><button class="btn" onclick="JM.app.selectCallDossier('${esc(c.id)}')">Painel</button>${quickLinks}<button class="btn good" onclick="JM.app.setCallStatus('${esc(c.id)}','despachado')">Despachar</button><button class="btn primary" onclick="JM.app.setCallStatus('${esc(c.id)}','motorista_a_caminho')">A caminho</button><button class="btn" onclick="JM.app.setCallStatus('${esc(c.id)}','finalizado')">Finalizar</button>${viewProofActions}${proofActions}${adminActions}</td>
-      </tr>`;
-    }).join("") + `</tbody></table>`;
+    const allActive = visibleRows(state.calls).filter((c) => !isFinalStatus(c));
+    const rows = allActive.filter((c) => matchesCallListFilter(c, filter)).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const container = $("callsTable");
+    if (!container) return;
+    const waiting = rows.filter((c) => currentStatusKey(c) === "aguardando_despacho").length;
+    const running = rows.filter((c) => !["aguardando_despacho", "cancelado", "finalizado"].includes(currentStatusKey(c))).length;
+    const proofPending = rows.filter((c) => proofStatus(c) !== "completo").length;
+    if (!rows.length) {
+      container.innerHTML = `<div class="call-board-empty"><p class="muted">Nenhum chamado ativo nos filtros atuais.</p><button class="btn primary" type="button" onclick="JM.app.focusNewCallForm()">Cadastrar novo chamado</button></div>`;
+      renderCallDossier();
+      return;
+    }
+    container.innerHTML = `<div class="call-board-v5">
+      <div class="call-board-head">
+        <div>
+          <b>Fila operacional</b>
+          <p class="muted small">${rows.length} chamado(s) exibido(s). Abrir um chamado não oculta os demais.</p>
+        </div>
+        <div class="call-board-kpis">
+          <span class="badge warn">${waiting} aguardando</span>
+          <span class="badge info">${running} em operação</span>
+          <span class="badge ${proofPending ? "warn" : "ok"}">${proofPending} com prova pendente</span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" onclick="JM.app.expandAllCallCards()">Abrir todos</button>
+          <button class="btn" type="button" onclick="JM.app.collapseAllCallCards()">Minimizar todos</button>
+          <button class="btn primary" type="button" onclick="JM.app.focusNewCallForm()">Novo chamado</button>
+        </div>
+      </div>
+      <div class="call-card-list">${rows.map(renderCallCard).join("")}</div>
+    </div>`;
+    renderCallDossier();
   }
 
   function selectCallDossier(id) {
@@ -3202,7 +3312,7 @@ Rota: ${url}`;
     const headerHtml = `<header class="report-header"><div><h1>Laudo técnico de atendimento</h1><p class="muted">${esc(company.nome || "JM Guinchos")} · ${esc(company.cidadeBase || "")} · ${esc(company.telefoneOperacional || "")}</p></div><div class="report-stamp"><b>${esc(call.protocolo || id)}</b><span>${dateTime(new Date().toISOString())}</span></div></header>`;
     const win = window.open("", "_blank");
     if (!win) return toast("O navegador bloqueou a janela de provas.", "danger");
-    win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Laudo ${esc(call.protocolo || id)}</title><style>body{font-family:Arial,sans-serif;padding:18px;color:#111827}.report-header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;border-bottom:2px solid #0f766e;padding-bottom:12px;margin-bottom:14px}.report-header h1{margin:0 0 4px;font-size:24px}.report-stamp{text-align:right;border:1px solid #d1d5db;border-radius:8px;padding:10px;min-width:160px}.report-stamp span{display:block;color:#64748b;font-size:12px;margin-top:4px}h2{font-size:15px;margin:18px 0 8px;color:#0f766e}.muted{color:#64748b}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.photo{break-inside:avoid;border:1px solid #d1d5db;border-radius:8px;padding:8px;margin:6px 0;background:#fff}.photo img{width:100%;height:118px;object-fit:cover;object-position:center;margin-top:6px;border-radius:6px}.signature-img,.photo .signature-img{width:100%;max-width:360px;height:92px;object-fit:contain;background:#fff;border:1px solid #d1d5db;border-radius:6px}.missing{color:#991b1b;background:#fef2f2}.report-context{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.report-context div{border:1px solid #e5e7eb;border-radius:8px;padding:8px}table{width:100%;border-collapse:collapse;margin:8px 0}th,td{border:1px solid #e5e7eb;padding:6px;text-align:left;font-size:12px}@media print{button{display:none}.photo{page-break-inside:avoid}.grid{grid-template-columns:repeat(4,minmax(0,1fr))}.photo img{height:92px}.signature-img{height:82px}body{padding:8mm}.report-header{position:running(reportHeader)}}@page{margin:10mm}</style></head><body>${headerHtml}<div class="report-context"><div><b>Cliente</b><br>${esc(call.cliente || "-")}</div><div><b>Seguradora</b><br>${esc(call.insurance || call.source || "-")}</div><div><b>Placa</b><br>${esc(call.customerPlate || "-")}</div></div><h2>Checklist por etapa</h2><ul>${checklistHtml}</ul><p>${esc(checklist.notes || "")}</p>${inspectionHtml}${damageHtml}${stageEvidenceHtml}<h2>Assinatura ou justificativa por fase</h2><div class="grid">${phaseSigHtml}</div><h2>Assinatura geral de compatibilidade</h2>${sigHtml}<h2>Fotos gerais</h2>${photoHtml}${SYSTEM_SIGNATURE ? `<p class="muted">${SYSTEM_SIGNATURE}</p>` : ""}</body></html>`);
+    win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Laudo ${esc(call.protocolo || id)}</title><style>body{font-family:Arial,sans-serif;padding:18px;color:#111827}.report-header{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;border-bottom:2px solid #0f766e;padding-bottom:12px;margin-bottom:14px}.report-header h1{margin:0 0 4px;font-size:24px}.report-stamp{text-align:right;border:1px solid #d1d5db;border-radius:8px;padding:10px;min-width:160px}.report-stamp span{display:block;color:#64748b;font-size:12px;margin-top:4px}h2{font-size:15px;margin:18px 0 8px;color:#0f766e}.muted{color:#64748b}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.photo{break-inside:avoid;border:1px solid #d1d5db;border-radius:8px;padding:8px;margin:6px 0;background:#fff}.photo img{width:100%;height:118px;object-fit:cover;object-position:center;margin-top:6px;border-radius:6px}.signature-img,.photo .signature-img{width:100%;max-width:420px;height:118px;object-fit:contain;background:#fff;border:2px solid #334155;border-radius:8px;padding:8px;filter:contrast(1.65) saturate(.85) brightness(.88)}.report-powered-footer{margin-top:14px;padding-top:8px;border-top:1px solid #cbd5e1;color:#64748b;font-size:10px;text-align:right}.missing{color:#991b1b;background:#fef2f2}.report-context{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.report-context div{border:1px solid #e5e7eb;border-radius:8px;padding:8px}table{width:100%;border-collapse:collapse;margin:8px 0}th,td{border:1px solid #e5e7eb;padding:6px;text-align:left;font-size:12px}@media print{button{display:none}.photo{page-break-inside:avoid}.grid{grid-template-columns:repeat(4,minmax(0,1fr))}.photo img{height:92px}.signature-img{height:82px}body{padding:8mm}.report-header{position:running(reportHeader)}}@page{margin:10mm}</style></head><body>${headerHtml}<div class="report-context"><div><b>Cliente</b><br>${esc(call.cliente || "-")}</div><div><b>Seguradora</b><br>${esc(call.insurance || call.source || "-")}</div><div><b>Placa</b><br>${esc(call.customerPlate || "-")}</div></div><h2>Checklist por etapa</h2><ul>${checklistHtml}</ul><p>${esc(checklist.notes || "")}</p>${inspectionHtml}${damageHtml}${stageEvidenceHtml}<h2>Assinatura ou justificativa por fase</h2><div class="grid">${phaseSigHtml}</div><h2>Assinatura geral de compatibilidade</h2>${sigHtml}<h2>Fotos gerais</h2>${photoHtml}${SYSTEM_SIGNATURE ? `<div class="report-powered-footer">${SYSTEM_SIGNATURE}</div>` : ""}</body></html>`);
     win.document.close();
   }
 
@@ -3711,7 +3821,6 @@ Rota: ${url}`;
     setValue("callNotes", [normalized.notes, normalized.questionSummary, normalized.tariffSummary, normalized.rawText || row.payloadText || row.payload && row.payload.text || ""].filter(Boolean).join("\n\n"));
     if (normalized.totalRouteKm && $("callTowKm")) {
       setValue("callTowKm", String(normalized.totalRouteKm).replace(".", ","));
-      if ($("callTowActive")) $("callTowActive").checked = true;
       calculateTowPricing();
     }
     state.pendingIntegrationId = id;
@@ -4359,6 +4468,7 @@ Rota: ${url}`;
       ? structured.externalStatus
       : (aiValue(lines, ["situação", "situacao"]) || (/finalizado/i.test(raw) ? "Finalizado" : ""));
     const technician = structured && structured.technician ? structured.technician : "";
+    const baseDetails = structured && structured.base ? structured.base : null;
     const originDetails = structured && structured.origin ? structured.origin : null;
     const destinationDetails = structured && structured.destination ? structured.destination : null;
     const origin = originDetails && originDetails.searchAddress
@@ -4386,6 +4496,7 @@ Rota: ${url}`;
       technician ? "Técnico informado pela seguradora: " + technician : "",
       billingClient && billingClient !== insurance ? "Cliente/associado/pagador: " + billingClient : "",
       externalStatus ? "Status no portal externo: " + externalStatus : "",
+      baseDetails && baseDetails.searchAddress ? "Base operacional A/D: " + baseDetails.searchAddress : "",
       cause ? "Causa: " + cause : "",
       originDetails && originDetails.reference ? "Referência da origem: " + originDetails.reference : "",
       originDetails && originDetails.observation ? "Observação da origem: " + originDetails.observation : "",
@@ -4409,6 +4520,8 @@ Rota: ${url}`;
       destination,
       originDetails,
       destinationDetails,
+      baseDetails,
+      routeFormat: structured && structured.routeFormat || "",
       technician,
       plate,
       vehicle,
@@ -4590,7 +4703,6 @@ Rota: ${url}`;
       const totalRouteKm = parseMoney(aiReviewValue(index, "totalRouteKm"));
       if (totalRouteKm && $("callTowKm")) {
         setValue("callTowKm", String(totalRouteKm).replace(".", ","));
-        if ($("callTowActive")) $("callTowActive").checked = true;
         calculateTowPricing();
       }
       toast("Chamado de seguradora aplicado no formulário. Confira rota, frota e valor antes de registrar.", "ok");
@@ -4677,7 +4789,7 @@ Rota: ${url}`;
       technician: original.technician || "",
       originDetails: original.originDetails || null,
       destinationDetails: original.destinationDetails || null,
-      parserVersion: "jm-sextafeira-hotfix-financeiro-rota-manual-v2"
+      parserVersion: "jm-fluxo-comercial-v6-laudos-financeiro"
     };
     return { original, reviewed };
   }
@@ -4700,7 +4812,7 @@ Rota: ${url}`;
       aiGenerated: true,
       aiReviewed: true,
       aiCreatedAt: now,
-      aiParserVersion: "jm-sextafeira-hotfix-financeiro-rota-manual-v2",
+      aiParserVersion: "jm-fluxo-comercial-v6-laudos-financeiro",
       cliente: reviewed.customerName || reviewed.requester || reviewed.billingClient || "Cliente não informado",
       phone: reviewed.customerPhone || "",
       serviceType: reviewed.serviceType || "Seguradora",
@@ -4871,7 +4983,7 @@ Rota: ${url}`;
           tariffSummary: reviewed.tariffSummary,
           mapLinks: original.mapLinks || [],
           rawText: draft.rawText || "",
-          parserVersion: "jm-sextafeira-hotfix-financeiro-rota-manual-v2"
+          parserVersion: "jm-fluxo-comercial-v6-laudos-financeiro"
         },
         rawPayload: draft.rawText || "",
         payload: Object.assign({}, original, reviewed),
@@ -4961,13 +5073,30 @@ Rota: ${url}`;
     });
     const entradas = rows.filter((t) => t.type === "entrada" && t.module !== "payments_shadow").reduce((s, t) => s + Number(t.amount || 0), 0);
     const saidas = rows.filter((t) => t.type === "saida").reduce((s, t) => s + Number(t.amount || 0), 0);
+    const recebido = rows.filter((t) => t.type === "entrada" && /pago|recebido|quitado|liquidado/i.test(String(t.status || ""))).reduce((s, t) => s + Number(t.paidAmount != null ? t.paidAmount : t.amount || 0), 0);
+    const aReceber = rows.filter((t) => t.type === "entrada" && !/pago|recebido|quitado|liquidado/i.test(String(t.status || ""))).reduce((s, t) => s + Number(t.balanceAmount != null ? t.balanceAmount : t.amount || 0), 0);
+    const pago = rows.filter((t) => t.type === "saida" && /pago|quitado|liquidado|aprovado/i.test(String(t.status || ""))).reduce((s, t) => s + Number(t.paidAmount != null ? t.paidAmount : t.amount || 0), 0);
+    const aPagar = rows.filter((t) => t.type === "saida" && !/pago|quitado|liquidado|aprovado/i.test(String(t.status || ""))).reduce((s, t) => s + Number(t.balanceAmount != null ? t.balanceAmount : t.amount || 0), 0);
+    const despesasPendentes = visibleRows(state.expenses).filter((e) => e.status === "pendente").reduce((s, e) => s + Number(e.amount || 0), 0);
+    const lucroPrevisto = entradas - saidas;
+    const lucroCaixa = recebido - pago;
     const toBill = visibleRows(state.calls).filter((c) => Number(c.valor || 0) > 0 && (isFinalStatus(c.statusKey || c.status) || /faturar|receber/i.test(String(c.billingStatus || ""))) && !c.receivableTransactionId && !c.closingId);
     const billingQueue = toBill.length ? `<div class="workflow-box warn"><b>Chamados finalizados/a faturar sem financeiro oficial</b><div class="table-wrap"><table><thead><tr><th>Chamado</th><th>Cliente/seguradora</th><th>Veículo</th><th>Valor</th><th>Ação</th></tr></thead><tbody>${toBill.map((c) => {
       const vehicle = state.vehicles[c.vehicleId] || {};
       return `<tr><td>${esc(c.protocolo || c.id)}</td><td>${esc(callDisplayName(c))}</td><td>${esc(vehicle.placa || c.vehicleId || "-")}</td><td><b>${money(c.valor || 0)}</b></td><td><button class="btn good" onclick="JM.app.generateCallReceivable('${esc(c.id)}')">Gerar cobrança</button></td></tr>`;
     }).join("")}</tbody></table></div></div>` : "";
     const filterInfo = rows.length === allRows.length ? "" : `<span>Filtrados <b>${rows.length}/${allRows.length}</b></span>`;
-    $("financeTable").innerHTML = `<div class="finance-summary"><span>Receitas <b>${money(entradas)}</b></span><span>Despesas <b>${money(saidas)}</b></span><span>Lucro bruto <b>${money(entradas - saidas)}</b></span><span>Registros <b>${rows.length}</b></span>${filterInfo}</div>${billingQueue}<table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Vínculos</th><th>Status</th><th>Valor</th><th>Ações</th></tr></thead><tbody>` +
+    const financeKpis = `<div class="finance-kpi-grid" aria-label="Resumo financeiro executivo">
+      <div class="finance-kpi-card good"><small>Receita prevista</small><b>${money(entradas)}</b></div>
+      <div class="finance-kpi-card good"><small>Recebido</small><b>${money(recebido)}</b></div>
+      <div class="finance-kpi-card warn"><small>A receber</small><b>${money(aReceber)}</b></div>
+      <div class="finance-kpi-card danger"><small>Despesas</small><b>${money(saidas)}</b></div>
+      <div class="finance-kpi-card danger"><small>Pago</small><b>${money(pago)}</b></div>
+      <div class="finance-kpi-card warn"><small>A pagar</small><b>${money(aPagar)}</b></div>
+      <div class="finance-kpi-card ${lucroPrevisto >= 0 ? "good" : "danger"}"><small>Lucro previsto</small><b>${money(lucroPrevisto)}</b></div>
+      <div class="finance-kpi-card ${lucroCaixa >= 0 ? "good" : "danger"}"><small>Caixa realizado</small><b>${money(lucroCaixa)}</b></div>
+    </div><div class="finance-summary executive"><span>Registros <b>${rows.length}</b></span><span>Chamados a faturar <b>${toBill.length}</b></span><span>Despesas pendentes <b>${money(despesasPendentes)}</b></span>${filterInfo}</div>`;
+    $("financeTable").innerHTML = `${financeKpis}${billingQueue}<div class="finance-section-title">Lançamentos financeiros</div><table><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Vínculos</th><th>Status</th><th>Valor</th><th>Ações</th></tr></thead><tbody>` +
       rows.map((t) => {
         const call = state.calls[t.callId] || {};
         const vehicle = state.vehicles[t.vehicleId] || {};
@@ -5543,6 +5672,10 @@ Rota: ${url}`;
     replyPublicChat,
     markPublicChatRead,
     selectCallDossier,
+    toggleCallCard,
+    expandAllCallCards,
+    collapseAllCallCards,
+    focusNewCallForm,
     reopenCall,
     editTeamMember,
     deleteTeamMember,

@@ -7,7 +7,7 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const VERSION = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
+  const VERSION = "jm-fluxo-comercial-v6-laudos-financeiro";
   const STATE_NAMES = {
     acre: "AC", alagoas: "AL", amapa: "AP", amazonas: "AM", bahia: "BA", ceara: "CE",
     "distrito federal": "DF", "espirito santo": "ES", goias: "GO", maranhao: "MA",
@@ -294,6 +294,53 @@
     return { origin, destination };
   }
 
+
+  function isAdbcLabel(line) {
+    return /^\s*(?:A\s*\/\s*D\s*-\s*Base|A\s*-\s*Base|Base|B\s*-\s*Local\s*(?:Ocorr[eê]ncia|Ocorrencia)|B\s*-\s*Ocorr[eê]ncia|Local\s*(?:Ocorr[eê]ncia|Ocorrencia)|C\s*-\s*Destino|Destino|Dist[aâ]ncia\s*Total)\s*:?/i.test(String(line || ""));
+  }
+
+  function adbcLabelKey(line) {
+    const k = key(String(line || "").replace(/:.*/, ""));
+    if (/^(a d base|a base|base)$/.test(k)) return "base";
+    if (/^(b local ocorrencia|b ocorrencia|local ocorrencia)$/.test(k)) return "origin";
+    if (/^(c destino|destino)$/.test(k)) return "destination";
+    if (/^distancia total$/.test(k)) return "distance";
+    return "";
+  }
+
+  function parseAdbcRoute(rawText) {
+    if (!/(?:A\s*\/\s*D\s*-\s*Base|B\s*-\s*Local\s*(?:Ocorr[eê]ncia|Ocorrencia)|C\s*-\s*Destino)/i.test(String(rawText || ""))) return null;
+    const inputLines = lines(rawText);
+    const buckets = { base: [], origin: [], destination: [] };
+    let current = "";
+    let found = false;
+    inputLines.forEach(function (line) {
+      const label = adbcLabelKey(line);
+      if (label) {
+        found = true;
+        if (label === "distance") return;
+        current = label;
+        const after = cleanSegment(line.replace(/^\s*(?:A\s*\/\s*D\s*-\s*Base|A\s*-\s*Base|Base|B\s*-\s*Local\s*(?:Ocorr[eê]ncia|Ocorrencia)|B\s*-\s*Ocorr[eê]ncia|Local\s*(?:Ocorr[eê]ncia|Ocorrencia)|C\s*-\s*Destino|Destino)\s*:?\s*/i, ""));
+        if (after) buckets[current].push(after);
+        return;
+      }
+      if (current && !isAdbcLabel(line)) buckets[current].push(line);
+    });
+    if (!found || (!buckets.origin.length && !buckets.destination.length)) return null;
+    const base = parseAddressSection(buckets.base, null);
+    const origin = parseAddressSection(buckets.origin, base);
+    const destination = parseAddressSection(buckets.destination, origin);
+    const distanceLine = inputLines.find(function (line) { return /^\s*Dist[aâ]ncia\s*Total\s*:/i.test(line); }) || "";
+    return {
+      type: "ADBC_BASE_ORIGEM_DESTINO",
+      base,
+      origin,
+      destination,
+      totalRouteKm: kmFromText(distanceLine) || kmFromText(rawText),
+      rawSections: buckets
+    };
+  }
+
   function parseMoney(value) {
     const raw = String(value || "").replace(/R\$/gi, "").replace(/\s/g, "").trim();
     if (!raw) return 0;
@@ -395,7 +442,8 @@
 
   function parse(rawText) {
     const inputLines = lines(rawText);
-    const addresses = parseAddressSections(rawText);
+    const specialRoute = parseAdbcRoute(rawText);
+    const addresses = specialRoute || parseAddressSections(rawText);
     const tariffs = parseTariffs(inputLines);
     const externalStatus = nearestValue(inputLines, "Situação", {
       preferBefore: true,
@@ -421,8 +469,10 @@
       color: nearestValue(inputLines, "Cor do Veículo", { preferBefore: false }) || nearestValue(inputLines, "Cor do Veiculo", { preferBefore: false }),
       cause: nearestValue(inputLines, "Causa", { preferBefore: false }),
       totalValue: parseMoney(totalValueText) || tariffs.total,
-      totalRouteKm: kmFromText(totalRouteText),
+      totalRouteKm: specialRoute && specialRoute.totalRouteKm || kmFromText(totalRouteText),
       baseDistanceKm: kmFromText(baseDistanceText),
+      base: specialRoute && specialRoute.base || null,
+      routeFormat: specialRoute && specialRoute.type || "",
       tariffs: tariffs.rows,
       tariffTotal: tariffs.total,
       tariffCalculatedTotal: tariffs.calculatedTotal,
@@ -437,6 +487,7 @@
     parse,
     parseAddressSections,
     parseAddressSection,
+    parseAdbcRoute,
     parseTariffs,
     normalizeKey: key,
     extractState,

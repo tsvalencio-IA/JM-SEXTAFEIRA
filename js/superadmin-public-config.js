@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  const VERSION = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
+  const VERSION = "jm-fluxo-comercial-v6-laudos-financeiro";
   const jm = window.JM || {};
   const firebaseApi = jm.firebase;
   if (!firebaseApi || !firebaseApi.db || !firebaseApi.auth) return;

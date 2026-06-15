@@ -1,9 +1,8 @@
 {
-  "version": "jm-sextafeira-hotfix-financeiro-rota-manual-v2",
-  "description": "Motorista com fluxo guiado e validação única de provas: pendências, proofStatus, etapa concluída e finalização usam a mesma regra.",
-  "updatedAt": "2026-06-15T18:45:00Z",
-  "build": "V32.7.7",
-  "notes": "Corrige divergência de proofStatus completo com pendências, falso ✓ em carregamento/entrega/finalização e recolhe relatório complementar.",
-  "base": "JM-SEXTAFEIRA-main (2).zip",
-  "hotfix": "financeiro-rota-manual-sem-auto-aplicar-valor"
+  "version": "jm-fluxo-comercial-v6-laudos-financeiro",
+  "description": "V6 comercial: assinaturas com alto contraste, laudos/relatórios profissionais com rodapé thIAguinho, financeiro mais executivo e fluxo logístico V5 preservado.",
+  "updatedAt": "2026-06-15T20:10:00Z",
+  "build": "V6",
+  "base": "JM-FLUXO-LOGISTICO-V5",
+  "notes": "Não altera Firebase Rules/RTDB Rules. Preserva gestor, motorista, cliente, GPS, provas, assinatura, despesas, financeiro e parser IA. Evolui apresentação comercial, laudos e leitura financeira."
 }
