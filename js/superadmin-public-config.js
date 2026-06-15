@@ -1,6 +1,6 @@
 (function () {
   "use strict";
-  const VERSION = "jm-v32-7-7-motorista-provas-fonte-unica";
+  const VERSION = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
   const jm = window.JM || {};
   const firebaseApi = jm.firebase;
   if (!firebaseApi || !firebaseApi.db || !firebaseApi.auth) return;

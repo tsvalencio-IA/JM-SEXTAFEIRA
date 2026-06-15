@@ -4,7 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
-const version = "jm-v32-7-7-motorista-provas-fonte-unica";
+const version = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
 
 const jm = read("jm.html");
 const motorista = read("motorista.html");

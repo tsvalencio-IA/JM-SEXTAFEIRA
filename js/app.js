@@ -10,7 +10,7 @@
   const { auth, secondaryAuth, db, ts, arrayUnion, emailIsAdmin, getRealtimeDb, rtdbKey } = window.JM.firebase;
   const cfg = window.JM_CONFIG || {};
   const SYSTEM_SIGNATURE = "";
-  const LOGIN_FLOW_VERSION = "jm-v32-7-7-motorista-provas-fonte-unica";
+  const LOGIN_FLOW_VERSION = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
   let trackerTimer = null;
   let trackerBusy = false;
   let mapRefreshTimer = null;
@@ -876,9 +876,9 @@
       result = calculateRoutePricing(callData, { route }, activePricingSettings(callData));
     }
     state.routePricing = result;
-    // Segurança financeira: cálculo de rota/pedágio é apenas assistido.
-    // O valor oficial do chamado só pode ser alterado por ação explícita do gestor
-    // pelo botão "Aplicar sugestão", que chama applySuggestedPriceToForm().
+    // HOTFIX FINANCEIRO/ROTA MANUAL:
+    // A rota calcula KM, pedágio e sugestão, mas NÃO altera o valor oficial automaticamente.
+    // O valor previsto só muda por ação explícita do gestor nos botões de aplicação.
     if (options.render !== false) renderRoutePricingSummary(result);
     return result;
   }
@@ -4677,7 +4677,7 @@ Rota: ${url}`;
       technician: original.technician || "",
       originDetails: original.originDetails || null,
       destinationDetails: original.destinationDetails || null,
-      parserVersion: "jm-v32-7-7-motorista-provas-fonte-unica"
+      parserVersion: "jm-sextafeira-hotfix-financeiro-rota-manual-v2"
     };
     return { original, reviewed };
   }
@@ -4700,7 +4700,7 @@ Rota: ${url}`;
       aiGenerated: true,
       aiReviewed: true,
       aiCreatedAt: now,
-      aiParserVersion: "jm-v32-7-7-motorista-provas-fonte-unica",
+      aiParserVersion: "jm-sextafeira-hotfix-financeiro-rota-manual-v2",
       cliente: reviewed.customerName || reviewed.requester || reviewed.billingClient || "Cliente não informado",
       phone: reviewed.customerPhone || "",
       serviceType: reviewed.serviceType || "Seguradora",
@@ -4871,7 +4871,7 @@ Rota: ${url}`;
           tariffSummary: reviewed.tariffSummary,
           mapLinks: original.mapLinks || [],
           rawText: draft.rawText || "",
-          parserVersion: "jm-v32-7-7-motorista-provas-fonte-unica"
+          parserVersion: "jm-sextafeira-hotfix-financeiro-rota-manual-v2"
         },
         rawPayload: draft.rawText || "",
         payload: Object.assign({}, original, reviewed),

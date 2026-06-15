@@ -4,7 +4,7 @@
   const { $, esc, parseMoney, toast, statusClass, routeKm, mapsRouteUrl, statusKey, statusLabel, isFinalStatus, setupCollapsiblePanels, pointFrom } = window.JM.utils;
   const { auth, db, arrayUnion, getRealtimeDb, rtdbKey } = window.JM.firebase;
   const cfg = window.JM_CONFIG || {};
-  const DRIVER_FLOW_VERSION = "jm-v32-7-7-motorista-provas-fonte-unica";
+  const DRIVER_FLOW_VERSION = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
   const state = {
     user: null,
     profile: null,
