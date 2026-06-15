@@ -1,4 +1,4 @@
-const CACHE_NAME = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
+const CACHE_NAME = "jm-fluxo-comercial-v6-laudos-financeiro";
 const ASSETS = [
   "./",
   "./index.html",

@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#07111f">
   <title>JM Guinchos - Gestor</title>
-  <link rel="manifest" href="manifest.json?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2">
+  <link rel="manifest" href="manifest.json?v=jm-fluxo-comercial-v6-laudos-financeiro">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/style.css?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2">
-  <link rel="stylesheet" href="css/final-ux.css?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2">
+  <link rel="stylesheet" href="css/style.css?v=jm-fluxo-comercial-v6-laudos-financeiro">
+  <link rel="stylesheet" href="css/final-ux.css?v=jm-fluxo-comercial-v6-laudos-financeiro">
 </head>
 <body>
   <section id="loginView" class="login">
@@ -242,49 +242,47 @@
                   <div class="actions" style="justify-content:space-between;align-items:center">
                     <div>
                       <b>Rota inteligente</b>
-                      <div class="muted small">Calcula melhor veículo, rota OSRM, pedágios cadastrados e preço sugerido sem API paga obrigatória.</div>
+                      <div class="muted small">Calcula rota, distância e pedágios cadastrados. O valor oficial continua manual.</div>
                     </div>
                     <div class="actions">
                       <button class="btn good" id="btnSmartRoute" type="button">Traçar rota inteligente</button>
-                      <button class="btn" id="btnRoutePricingRecalc" type="button">Recalcular rota/preço</button>
+                      <button class="btn" id="btnRoutePricingRecalc" type="button">Recalcular rota/pedágio</button>
                       <button class="btn" id="btnOpenGoogleRoute" type="button">Abrir rota no Maps</button>
                     </div>
                   </div>
                   <div id="smartRouteBox" class="smart-route-box small muted">Use coordenadas ou link com coordenadas. O algoritmo usa Tracker RAFA e rota por ruas; se falhar, mantém fallback estimado.</div>
-                  <div id="routePricingSummary" class="route-pricing-summary small muted">Preço sugerido e pedágio aparecem aqui após calcular a rota.</div>
+                  <div id="routePricingSummary" class="route-pricing-summary small muted">Distância, pedágio e sugestão aparecem aqui após calcular a rota. Nada altera o valor previsto sem ação do gestor.</div>
                 </div>
-                <div class="wide tow-pricing-card">
+                <div class="wide tow-pricing-card simple-pricing-card">
                   <div class="actions" style="justify-content:space-between;align-items:center">
                     <div>
-                      <b>Precificação do guincho</b>
-                      <div class="muted small">Cálculo editável no chamado: saída + KM, desconto próprio, franquia, ida/volta e pedágios.</div>
+                      <b>Fechamento manual do chamado</b>
+                      <div class="muted small">O campo oficial é <b>Valor previsto</b>. A rota apenas auxilia com KM, pedágio e sugestão. Não há mais campos de cálculo de guincho na tela.</div>
                     </div>
-                    <label class="toggle-line"><input type="checkbox" id="callTowActive"> Cobrar no chamado</label>
+                    <button class="btn good" id="btnUseSuggestedPrice" type="button">Aplicar sugestão da rota no valor previsto</button>
                   </div>
-                  <div class="form-grid compact-grid">
-                    <div class="wide"><label>Tipo de transporte</label><select id="callTowType"><option value="leve">Leve até 1.500 kg / moto / semirreboque até 750 kg</option><option value="pesado">Pesado acima de 1.500 kg / van / coletivo / carga / semirreboque acima de 750 kg</option></select></div>
-                    <div><label>KM rodado na ida</label><input id="callTowKm" inputmode="decimal" placeholder="Ex: 30,00"></div>
-                    <div><label>Franquia inclusa (km)</label><input id="callTowFranchiseKm" inputmode="decimal" value="15"></div>
-                    <div><label>Saída guincho (R$)</label><input id="callTowBaseOut" inputmode="decimal" value="253,22"></div>
-                    <div><label>KM base (R$)</label><input id="callTowKmValue" inputmode="decimal" value="8,51"></div>
-                    <div><label>Desc. guincho (%)</label><input id="callTowDiscountPct" inputmode="decimal" value="0"></div>
-                    <div><label>Pedágio ida (R$)</label><input id="callTowTollOneWay" inputmode="decimal" value="0,00"></div>
-                    <label class="check-card"><input type="checkbox" id="callTowRoundTrip" checked> Cobrar ida e volta</label>
-                    <label class="check-card"><input type="checkbox" id="callTowSubtractFranchise"> Abater franquia de KM</label>
-                    <label class="check-card"><input type="checkbox" id="callTowTollRoundTrip" checked> Cobrar pedágio ida e volta</label>
-                    <div><label>Saída líquida</label><input id="callTowNetOut" readonly value="R$ 0,00"></div>
-                    <div><label>KM líquido</label><input id="callTowNetKm" readonly value="R$ 0,00"></div>
-                    <div><label>Valor por trecho</label><input id="callTowOneWay" readonly value="R$ 0,00"></div>
-                    <div><label>Total pedágios</label><input id="callTowTollTotal" readonly value="R$ 0,00"></div>
-                    <div><label>Total guincho</label><input id="callTowTotal" readonly value="R$ 0,00"></div>
-                    <div class="wide"><label>Observação do deslocamento</label><input id="callTowNotes" placeholder="Ex: remoção ida e volta, excedente KM, apoio externo..."></div>
+                  <div id="towPricingStatus" class="small muted">Preencha o valor manualmente ou aplique a sugestão calculada pela rota. O sistema não muda o valor sozinho.</div>
+                  <div class="legacy-tow-fields hidden" aria-hidden="true" style="display:none">
+                    <input type="checkbox" id="callTowActive">
+                    <select id="callTowType"><option value="leve">Leve até 1.500 kg / moto / semirreboque até 750 kg</option><option value="pesado">Pesado acima de 1.500 kg / van / coletivo / carga / semirreboque acima de 750 kg</option></select>
+                    <input id="callTowKm" inputmode="decimal">
+                    <input id="callTowFranchiseKm" inputmode="decimal" value="15">
+                    <input id="callTowBaseOut" inputmode="decimal" value="253,22">
+                    <input id="callTowKmValue" inputmode="decimal" value="8,51">
+                    <input id="callTowDiscountPct" inputmode="decimal" value="0">
+                    <input id="callTowTollOneWay" inputmode="decimal" value="0,00">
+                    <input type="checkbox" id="callTowRoundTrip" checked>
+                    <input type="checkbox" id="callTowSubtractFranchise">
+                    <input type="checkbox" id="callTowTollRoundTrip" checked>
+                    <input id="callTowNetOut" readonly value="R$ 0,00">
+                    <input id="callTowNetKm" readonly value="R$ 0,00">
+                    <input id="callTowOneWay" readonly value="R$ 0,00">
+                    <input id="callTowTollTotal" readonly value="R$ 0,00">
+                    <input id="callTowTotal" readonly value="R$ 0,00">
+                    <input id="callTowNotes">
+                    <button id="btnTowUseRouteKm" type="button"></button>
+                    <button id="btnTowApplyToPrice" type="button"></button>
                   </div>
-                  <div class="actions tow-actions">
-                    <button class="btn" id="btnTowUseRouteKm" type="button">Usar KM da rota calculada</button>
-                    <button class="btn good" id="btnUseSuggestedPrice" type="button">Usar preço sugerido</button>
-                    <button class="btn good" id="btnTowApplyToPrice" type="button">Aplicar total no valor previsto</button>
-                  </div>
-                  <div id="towPricingStatus" class="small muted">Ao traçar rota inteligente, o sistema sugere KM, pedágio por praças cadastradas e preço. Valor digitado manualmente não é substituído sem clique explícito.</div>
                 </div>
                 <div class="wide"><label>Observações</label><textarea id="callNotes"></textarea></div>
                 <button class="btn primary wide" type="submit">Registrar chamado</button>
@@ -625,19 +623,19 @@
   <footer class="signature-footer" aria-hidden="true"></footer>
   <div id="toast" class="toast"></div>
 
-  <script src="js/config.firebase.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
+  <script src="js/config.firebase.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
-  <script src="js/utils.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
-  <script src="js/firebase.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
-  <script src="js/tracker.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
-  <script src="js/google-maps.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
-  <script src="js/mapa.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
-  <script src="js/toll-plazas.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
-  <script src="js/insurance-parser.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
-  <script src="js/app.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
-  <script src="js/final-ux.js?v=jm-sextafeira-hotfix-financeiro-rota-manual-v2"></script>
+  <script src="js/utils.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
+  <script src="js/firebase.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
+  <script src="js/tracker.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
+  <script src="js/google-maps.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
+  <script src="js/mapa.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
+  <script src="js/toll-plazas.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
+  <script src="js/insurance-parser.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
+  <script src="js/app.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
+  <script src="js/final-ux.js?v=jm-fluxo-comercial-v6-laudos-financeiro"></script>
 </body>
 </html>

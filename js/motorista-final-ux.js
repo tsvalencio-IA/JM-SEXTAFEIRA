@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "jm-sextafeira-hotfix-financeiro-rota-manual-v2";
+  const VERSION = "jm-fluxo-comercial-v6-laudos-financeiro";
   const motor = window.JM && window.JM.motorista;
   const utils = window.JM && window.JM.utils || {};
   if (!motor || !motor.state) return;

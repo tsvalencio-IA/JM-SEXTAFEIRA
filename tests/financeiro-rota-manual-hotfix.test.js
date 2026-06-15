@@ -6,7 +6,7 @@ const app = fs.readFileSync(path.join(root, 'js', 'app.js'), 'utf8');
 const jm = fs.readFileSync(path.join(root, 'jm.html'), 'utf8');
 const sw = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const version = fs.readFileSync(path.join(root, 'version.json'), 'utf8');
-const VERSION = 'jm-sextafeira-hotfix-financeiro-rota-manual-v2';
+const VERSION = 'jm-fluxo-comercial-v6-laudos-financeiro';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -22,5 +22,8 @@ assert(!app.includes('setOfficialPriceField(result.pricingSuggestion.suggestedSe
 assert(app.includes('function applySuggestedPriceToForm()'), 'botão de aplicar sugestão perdeu a função');
 assert(app.includes('setOfficialPriceField(suggestion.suggestedServiceValue, "suggested")'), 'aplicação explícita da sugestão foi perdida');
 assert(jm.includes('id="btnUseSuggestedPrice"'), 'botão Usar preço sugerido não existe no HTML');
-assert(jm.includes('id="btnTowApplyToPrice"'), 'botão Aplicar total no valor previsto não existe no HTML');
+assert(jm.includes('class="legacy-tow-fields hidden"'), 'campos legados de guincho não foram preservados de forma oculta');
+assert(!jm.includes('<b>Precificação do guincho</b>'), 'card confuso de precificação do guincho continua visível');
+assert(!jm.includes('Saída guincho (R$)'), 'campo Saída guincho continua visível');
+assert(jm.includes('Fechamento manual do chamado'), 'novo fechamento manual não foi encontrado');
 console.log('OK financeiro-rota-manual-hotfix');
